@@ -53,7 +53,8 @@ enum dirtyJtagCmd
 enum CommandModifier
 {
     EXTEND_LENGTH = 0x40,
-    NO_READ = 0x80
+    NO_READ = 0x80,
+	READOUT = 0x80
 };
 
 struct version_specific
@@ -227,7 +228,7 @@ static int dirtyjtag_getversion(void)
 	assert(res == ERROR_OK);
 	if (res)
 	{
-		LOG_ERROR("getversion: usb bulk write failed ");
+		LOG_ERROR("dirtyjtag_getversion: usb bulk write failed");
 		return ERROR_JTAG_INIT_FAILED;
 	}
 	do
@@ -236,7 +237,7 @@ static int dirtyjtag_getversion(void)
 									(char *)rx_buf, 64, DIRTYJTAG_USB_TIMEOUT, &actual_length);
 		if (res)
 		{
-			LOG_ERROR("getversion: usb bulk read failed ");
+			LOG_ERROR("dirtyjtag_getversion: usb bulk read failed");
 			return ERROR_JTAG_INIT_FAILED;
 		}
 	} while (actual_length == 0);
@@ -257,7 +258,7 @@ static int dirtyjtag_getversion(void)
 		LOG_INFO("dirtyJtag version unknown");
 		dirtyjtag_version = 0;
 	}
-	printf("dirtyjtag version %d\n", dirtyjtag_version);
+	LOG_INFO("dirtyjtag version %d", dirtyjtag_version);
 	return ERROR_OK;
 }
 static int dirtyjtag_init(void)
@@ -471,6 +472,11 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 
 	dirtyjtag_buffer_flush();
 
+
+	if (type != SCAN_OUT)
+	{
+		xfer_tx[0] |= dirtyjtag_v_options->no_read;
+	}
 	while (scan_size > 0)
 	{
 		sent_bits = min(dirtyjtag_v_options->max_bits, scan_size);
@@ -499,18 +505,21 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 			memset(&xfer_tx[2], 0, sent_bytes);
 		}
 
-		res = jtag_libusb_bulk_write(usb_handle, ep_write, 
+		res = jtag_libusb_bulk_write(usb_handle, ep_write,
 									 (char *)xfer_tx, sent_bytes + 2, DIRTYJTAG_USB_TIMEOUT, &written);
 		dirtyjtag_buffer_flush();
 
-		read = 0;
-		res = jtag_libusb_bulk_read(usb_handle, ep_read,
-									(char *)xfer_rx, (sent_bytes > 255) ? sent_bytes : 32, DIRTYJTAG_USB_TIMEOUT, &read);
-		assert(res == ERROR_OK);
-        assert(read == sent_bytes);
+		if (!dirtyjtag_v_options->no_read || (type != SCAN_OUT))
+		{
+			read = 0;
+			res = jtag_libusb_bulk_read(usb_handle, ep_read,
+										(char *)xfer_rx, (sent_bytes > 255) ? sent_bytes : 32, DIRTYJTAG_USB_TIMEOUT, &read);
+			assert(res == ERROR_OK);
+			assert(read == sent_bytes);
+		}
 
-        if (type != SCAN_OUT)
-        {
+		if (type != SCAN_OUT)
+		{
 			for (i = 0; i < 32; i++)
 			{
 				xfer_rx[i] = swap_bits(xfer_rx[i]);
@@ -524,7 +533,10 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 
 	dirtyjtag_write(0, 1, last_bit);
     dirtyjtag_write(1, 1, last_bit);
-    buffer[pos_last_byte] = (buffer[pos_last_byte] & ~(1 << pos_last_bit)) | (dirtyjtag_get_tdo() << pos_last_bit);
+	if (type != SCAN_OUT)
+	{
+    	buffer[pos_last_byte] = (buffer[pos_last_byte] & ~(1 << pos_last_bit)) | (dirtyjtag_get_tdo() << pos_last_bit);
+	}
     dirtyjtag_write(0, 1, last_bit);
 
     // printf("RX\t");
