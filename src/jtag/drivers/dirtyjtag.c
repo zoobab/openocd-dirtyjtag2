@@ -525,7 +525,7 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 	dirtyjtag_write(0, 1, last_bit);
     dirtyjtag_write(1, 1, last_bit);
     buffer[pos_last_byte] = (buffer[pos_last_byte] & ~(1 << pos_last_bit)) | (dirtyjtag_get_tdo() << pos_last_bit);
-    dirtyjtag_write(1, 1, last_bit);
+    dirtyjtag_write(0, 1, last_bit);
 
     // printf("RX\t");
 	// for (i = 0; i < xfer_bytes; i++)
