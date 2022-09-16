@@ -193,7 +193,7 @@ static void dirtyjtag_clk(int num_cycles, int tms, int tdi)
  * Control /TRST and /SYSRST pins.
  * Perform immediate bitbang transaction.
  */
-static void dirtyjtag_reset(int trst, int srst)
+static int dirtyjtag_reset(int trst, int srst)
 {
 	uint8_t command[] = {
 		CMD_SETSIG,
@@ -203,6 +203,7 @@ static void dirtyjtag_reset(int trst, int srst)
 	LOG_DEBUG("dirtyjtag_reset(%d,%d)", trst, srst);
 	dirtyjtag_buffer_append(command, sizeof(command) / sizeof(command[0]));
 	dirtyjtag_buffer_flush();
+	return ERROR_OK;
 }
 
 static int dirtyjtag_speed(int divisor)
@@ -618,8 +619,9 @@ static int syncbb_execute_queue(void)
 			break;
 
 		case JTAG_SLEEP:
+			dirtyjtag_buffer_flush();
 			jtag_sleep(cmd->cmd.sleep->us);
-            break;
+			break;
 
         case JTAG_TMS:
 			retval = syncbb_execute_tms(cmd);
@@ -648,6 +650,7 @@ struct adapter_driver dirtyjtag_adapter_driver = {
 
 	.init = dirtyjtag_init,
 	.quit = dirtyjtag_quit,
+	.reset = dirtyjtag_reset,
 	.speed = dirtyjtag_speed,
 	.khz = dirtyjtag_khz,
 	.speed_div = dirtyjtag_speed_div,
