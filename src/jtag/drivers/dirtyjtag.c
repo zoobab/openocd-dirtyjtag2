@@ -330,10 +330,8 @@ static void syncbb_state_move(int skip)
 	for (i = skip; i < tms_count; i++)
 	{
 		tms = (tms_scan >> i) & 1;
-		dirtyjtag_write(0, tms, 0);
-		dirtyjtag_write(1, tms, 0);
+		dirtyjtag_clk(1, tms, 0);
 	}
-	dirtyjtag_write(0, tms, 0);
 
 	tap_set_state(tap_get_end_state());
 }
@@ -353,10 +351,8 @@ static int syncbb_execute_tms(struct jtag_command *cmd)
 	for (unsigned i = 0; i < num_bits; i++)
 	{
 		tms = ((bits[i / 8] >> (i % 8)) & 1);
-		dirtyjtag_write(0, tms, 0);
-		dirtyjtag_write(1, tms, 0);
+		dirtyjtag_clk(1, tms, 0);
 	}
-	dirtyjtag_write(0, tms, 0);
 
 	return ERROR_OK;
 }
@@ -386,16 +382,11 @@ static void syncbb_path_move(struct pathmove_command *cmd)
 			exit(-1);
 		}
 
-		dirtyjtag_write(0, tms, 0);
-		dirtyjtag_write(1, tms, 0);
-
+		dirtyjtag_clk(1, tms, 0);
 		tap_set_state(cmd->path[state_count]);
 		state_count++;
 		num_states--;
 	}
-
-	dirtyjtag_write(0, tms, 0);
-
 	tap_set_end_state(tap_get_state());
 }
 
