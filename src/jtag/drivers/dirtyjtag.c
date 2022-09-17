@@ -32,8 +32,8 @@
 /**
  * USB settings
  */
-static const uint8_t ep_write = 0x01;
-static const uint8_t ep_read = 0x82;
+static  unsigned int dirtyjtag_ep_write = 0x01;
+static  unsigned int dirtyjtag_ep_read = 0x82;
 #define DIRTYJTAG_USB_TIMEOUT 100
 static const uint16_t dirtyjtag_vid = 0x1209;
 static const uint16_t dirtyjtag_pid = 0xC0CA;
@@ -112,7 +112,7 @@ static void dirtyjtag_buffer_flush(void)
 
     dirtyjtag_buffer[dirtyjtag_buffer_use] = CMD_STOP;
 
-    res = jtag_libusb_bulk_write(usb_handle, ep_write, (char *)dirtyjtag_buffer,
+    res = jtag_libusb_bulk_write(usb_handle, dirtyjtag_ep_write, (char *)dirtyjtag_buffer,
 								 dirtyjtag_buffer_use + 1, DIRTYJTAG_USB_TIMEOUT, &sent);
 	assert(res == ERROR_OK);
 	assert(sent == dirtyjtag_buffer_use + 1);
@@ -159,7 +159,7 @@ static bool dirtyjtag_get_tdo(void)
 	dirtyjtag_buffer_append(command, sizeof(command) / sizeof(command[0]));
 	dirtyjtag_buffer_flush();
 
-	res = jtag_libusb_bulk_read(usb_handle, ep_read,
+	res = jtag_libusb_bulk_read(usb_handle, dirtyjtag_ep_read,
 								&state, 1, DIRTYJTAG_USB_TIMEOUT, &read);
 	assert(res == ERROR_OK);
 	assert(read == 1);
@@ -224,7 +224,7 @@ static int dirtyjtag_getversion(void)
 	uint8_t buf[] = {CMD_INFO,
 					 CMD_STOP};
 	uint8_t rx_buf[64];
-	res = jtag_libusb_bulk_write(usb_handle, ep_write, (char *)buf,
+	res = jtag_libusb_bulk_write(usb_handle, dirtyjtag_ep_write, (char *)buf,
 								 2, DIRTYJTAG_USB_TIMEOUT, &actual_length);
 	assert(res == ERROR_OK);
 	if (res)
@@ -234,7 +234,7 @@ static int dirtyjtag_getversion(void)
 	}
 	do
 	{
-		res = jtag_libusb_bulk_read(usb_handle, ep_read,
+		res = jtag_libusb_bulk_read(usb_handle, dirtyjtag_ep_read,
 									(char *)rx_buf, 64, DIRTYJTAG_USB_TIMEOUT, &actual_length);
 		if (res)
 		{
@@ -273,7 +273,8 @@ static int dirtyjtag_init(void)
 		return ERROR_JTAG_INIT_FAILED;
 	}
 
-	if (libusb_claim_interface(usb_handle, 0))
+	if (jtag_libusb_choose_interface(usb_handle, 
+	    &dirtyjtag_ep_read, &dirtyjtag_ep_write, -1, -1, 0, LIBUSB_TRANSFER_TYPE_BULK))
 	{
 		LOG_ERROR("unable to claim interface");
 		return ERROR_JTAG_INIT_FAILED;
@@ -497,14 +498,13 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 			memset(&xfer_tx[2], 0, sent_bytes);
 		}
 
-		res = jtag_libusb_bulk_write(usb_handle, ep_write,
+		res = jtag_libusb_bulk_write(usb_handle, dirtyjtag_ep_write,
 									 (char *)xfer_tx, sent_bytes + 2, DIRTYJTAG_USB_TIMEOUT, &written);
-		dirtyjtag_buffer_flush();
 
 		if (!dirtyjtag_v_options->no_read || (type != SCAN_OUT))
 		{
 			read = 0;
-			res = jtag_libusb_bulk_read(usb_handle, ep_read,
+			res = jtag_libusb_bulk_read(usb_handle, dirtyjtag_ep_read,
 										(char *)xfer_rx, (sent_bytes > 255) ? sent_bytes : 32, DIRTYJTAG_USB_TIMEOUT, &read);
 			assert(res == ERROR_OK);
 			assert(read == sent_bytes);
