@@ -183,8 +183,8 @@ static void dirtyjtag_clk(int num_cycles, int tms, int tdi)
 	 */
 	while (num_cycles > 0)
 	{
-		command[2] = min(255, num_cycles);
-		num_cycles -= min(255, num_cycles);
+		command[2] = MIN(255, num_cycles);
+		num_cycles -= MIN(255, num_cycles);
 		dirtyjtag_buffer_append(command, sizeof(command) / sizeof(command[0]));
 	}
 }
@@ -472,7 +472,7 @@ static void syncbb_scan(bool ir_scan, enum scan_type type, uint8_t *buffer, int 
 	}
 	while (scan_size > 0)
 	{
-		sent_bits = min(dirtyjtag_v_options->max_bits, scan_size);
+		sent_bits = MIN(dirtyjtag_v_options->max_bits, scan_size);
 		sent_bytes = (sent_bits + 7) / 8;
 		if (sent_bits > 255)
 		{
